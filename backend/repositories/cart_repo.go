@@ -55,3 +55,12 @@ func (r *CartRepository) RemoveItem(cartID, productID int) error {
     _, err := r.db.Exec(`DELETE FROM cart_items WHERE cart_id=$1 AND product_id=$2`, cartID, productID)
     return err
 }
+
+func (r *CartRepository) ClearCartTx(tx *sql.Tx, userID int) error {
+    var cartID int
+    if err := tx.QueryRow(`SELECT id FROM carts WHERE user_id=$1`, userID).Scan(&cartID); err != nil {
+        return err
+    }
+    _, err := tx.Exec(`DELETE FROM cart_items WHERE cart_id=$1`, cartID)
+    return err
+}

@@ -43,6 +43,8 @@ func main() {
 
 	cartSvc := services.NewCartService(cartRepo, productRepo)
 	wishlistSvc := services.NewWishlistService(wishlistRepo, productRepo)
+	orderRepo := repositories.NewOrderRepository(dbConn)
+	orderSvc := services.NewOrderService(dbConn, orderRepo, cartSvc)
 
 	r := gin.Default()
 
@@ -50,6 +52,7 @@ func main() {
 	productHandler := handlers.NewProductHandler(productSvc)
 	cartHandler := handlers.NewCartHandler(cartSvc)
 	wishlistHandler := handlers.NewWishlistHandler(wishlistSvc)
+	orderHandler := handlers.NewOrderHandler(orderSvc)
 
 	api := r.Group("/api")
 	{
@@ -77,6 +80,7 @@ func main() {
 		protected.POST("/wishlist", wishlistHandler.Add)
 		protected.DELETE("/wishlist/:product_id", wishlistHandler.Remove)
 		protected.GET("/wishlist", wishlistHandler.List)
+		protected.POST("/orders", orderHandler.Create)
 	}
 
 	port := os.Getenv("PORT")

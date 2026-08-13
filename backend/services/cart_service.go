@@ -1,6 +1,7 @@
 package services
 
 import (
+    "database/sql"
     "backend/models"
     "backend/repositories"
 )
@@ -35,4 +36,9 @@ func (s *CartService) RemoveItem(userID, productID int) error {
     cart, err := s.carts.GetOrCreateCart(userID)
     if err != nil { return err }
     return s.carts.RemoveItem(cart.ID, productID)
+}
+
+// ClearCartTx clears the user's cart using an existing transaction.
+func (s *CartService) ClearCartTx(tx *sql.Tx, userID int) error {
+    return s.carts.ClearCartTx(tx, userID)
 }
