@@ -37,7 +37,13 @@ func main() {
 	productRepo := repositories.NewProductRepository(dbConn)
 
 	authSvc := services.NewAuthService(userRepo, jwtSecret)
-	productSvc := services.NewProductService(productRepo)
+	// initialize cache
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" { redisAddr = "localhost:6379" }
+	redisPass := os.Getenv("REDIS_PASSWORD")
+	cache := services.NewCache(redisAddr, redisPass)
+
+	productSvc := services.NewProductService(productRepo, cache)
 	cartRepo := repositories.NewCartRepository(dbConn)
 	wishlistRepo := repositories.NewWishlistRepository(dbConn)
 
