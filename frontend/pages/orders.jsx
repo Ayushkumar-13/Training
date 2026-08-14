@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import SkeletonCard from '../components/SkeletonCard'
 import { fetchJSON, formatPrice } from '../lib/api'
 import { useTheme } from '../lib/ThemeContext'
 
@@ -19,67 +20,162 @@ export default function Orders() {
       case 'delivered':
         return <span className={`px-3 py-1 text-xs font-bold rounded-full border ${darkMode ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-emerald-100 text-emerald-800 border-emerald-300'}`}>Delivered</span>
       case 'shipped':
-        return <span className={`px-3 py-1 text-xs font-bold rounded-full border ${darkMode ? 'bg-cyan-950 text-cyan-300 border-cyan-800' : 'bg-cyan-100 text-cyan-800 border-cyan-300'}`}>Shipped</span>
+        return <span className={`px-3 py-1 text-xs font-bold rounded-full border ${darkMode ? 'bg-indigo-950 text-indigo-300 border-indigo-800' : 'bg-indigo-100 text-indigo-800 border-indigo-300'}`}>Shipped In-Transit</span>
       case 'processing':
-        return <span className={`px-3 py-1 text-xs font-bold rounded-full border ${darkMode ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>Processing</span>
+        return <span className={`px-3 py-1 text-xs font-bold rounded-full border ${darkMode ? 'bg-cyan-950 text-cyan-300 border-cyan-800' : 'bg-cyan-100 text-cyan-800 border-cyan-300'}`}>Processing QC</span>
       default:
-        return <span className={`px-3 py-1 text-xs font-bold rounded-full border ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>Pending</span>
+        return <span className={`px-3 py-1 text-xs font-bold rounded-full border ${darkMode ? 'bg-amber-950 text-amber-300 border-amber-800' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>Pending Payment</span>
     }
   }
+
+  function getStepProgress(status) {
+    switch (status) {
+      case 'delivered': return 4
+      case 'shipped': return 3
+      case 'processing': return 2
+      default: return 1
+    }
+  }
+
+  const totalSpentCents = orders.reduce((sum, o) => sum + (o.total_cents || 0), 0)
+  const activeCount = orders.filter(o => o.status !== 'delivered').length
+  const deliveredCount = orders.filter(o => o.status === 'delivered').length
 
   return (
     <main className={`min-h-screen transition-colors duration-200 ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <h1 className="text-3xl font-black mb-2">Order History & Tracking</h1>
-        <p className={`text-sm mb-8 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>View fulfillment status of equipment purchases.</p>
+        {/* Header & Metrics Bar */}
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">Hospital Order Tracking</h1>
+            <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              Monitor clinical equipment fulfillment status and procurement invoices.
+            </p>
+          </div>
 
+          {orders.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className={`p-3 rounded-xl border text-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Total Orders</div>
+                <div className="text-lg font-black mt-0.5">{orders.length}</div>
+              </div>
+              <div className={`p-3 rounded-xl border text-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Active Shipments</div>
+                <div className="text-lg font-black text-cyan-500 mt-0.5">{activeCount}</div>
+              </div>
+              <div className={`p-3 rounded-xl border text-center col-span-2 sm:col-span-1 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Total Spend</div>
+                <div className="text-lg font-black text-emerald-500 mt-0.5">{formatPrice(totalSpentCents)}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Orders List */}
         {loading ? (
-          <div className="space-y-4 animate-pulse">
+          <div className="space-y-6">
             {[1, 2].map(i => (
-              <div key={i} className={`h-28 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`} />
+              <SkeletonCard key={i} />
             ))}
           </div>
         ) : orders.length === 0 ? (
           <div className={`border p-12 rounded-2xl text-center shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <h3 className="text-xl font-bold mb-2">No orders found</h3>
-            <p className={`text-sm mb-6 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>You haven't placed any medical equipment orders yet.</p>
-            <a href="/products" className="px-6 py-3 text-sm font-bold rounded-xl bg-cyan-600 text-white inline-block">Browse Catalog</a>
+            <div className="w-16 h-16 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-400 flex items-center justify-center font-bold text-3xl mx-auto mb-4">
+              🚚
+            </div>
+            <h3 className="text-xl font-bold mb-2">No order history found</h3>
+            <p className={`text-sm mb-6 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>You haven't placed any medical equipment procurement orders yet.</p>
+            <a href="/products" className="px-6 py-3 text-sm font-bold rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white shadow-md inline-block transition-all">
+              Explore Equipment Catalog
+            </a>
           </div>
         ) : (
-          <div className="space-y-6">
-            {orders.map(o => (
-              <div key={o.id} className={`border p-6 rounded-2xl shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                <div className={`flex flex-wrap items-center justify-between gap-4 pb-4 border-b ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                  <div>
-                    <div className="text-xs font-mono font-bold text-cyan-500">ORDER IDENTIFIER</div>
-                    <div className="text-xl font-bold">#{o.id}</div>
-                    <div className={`text-xs mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Placed on {new Date(o.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })}</div>
-                  </div>
+          <div className="space-y-8">
+            {orders.map(o => {
+              const currentStep = getStepProgress(o.status)
 
-                  <div className="flex items-center gap-4">
-                    {getStatusBadge(o.status)}
-                    <div className="text-right">
-                      <div className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>TOTAL</div>
-                      <div className="text-xl font-black">{formatPrice(o.total_cents)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Items */}
-                <div className="mt-4 space-y-3">
-                  {o.items && o.items.map(it => (
-                    <div key={it.id} className="flex justify-between items-center text-sm py-1">
-                      <div>
-                        <span className="font-bold">{it.product_name || `Product #${it.product_id}`}</span>
-                        <span className={`text-xs ml-2 font-mono font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>({it.product_sku || 'N/A'})</span>
-                        <span className="text-xs text-cyan-500 ml-3 font-bold">Qty: {it.quantity}</span>
+              return (
+                <div
+                  key={o.id}
+                  className={`border rounded-2xl p-6 shadow-sm transition-all hover:shadow-md ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
+                >
+                  {/* Order Top Meta */}
+                  <div className={`flex flex-wrap items-center justify-between gap-4 pb-6 border-b ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-black">Order #{o.id}</span>
+                        {getStatusBadge(o.status)}
                       </div>
-                      <span className="font-bold">{formatPrice(it.unit_cents * it.quantity)}</span>
+                      <div className={`text-xs mt-1 space-x-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <span>Placed: <strong className={darkMode ? 'text-slate-200' : 'text-slate-700'}>{new Date(o.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })}</strong></span>
+                        <span>•</span>
+                        <span>Billing: <strong className="text-cyan-500">{o.payment_method === 'hospital_po' ? 'Hospital Purchase Order (PO)' : 'Demo Credit Card'}</strong></span>
+                      </div>
                     </div>
-                  ))}
+
+                    <div className="text-right">
+                      <div className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>TOTAL AMOUNT</div>
+                      <div className="text-2xl font-black text-emerald-500">{formatPrice(o.total_cents)}</div>
+                    </div>
+                  </div>
+
+                  {/* 4-Step Fulfillment Tracker */}
+                  <div className="py-6 border-b dark:border-slate-800 border-slate-100">
+                    <div className="text-xs font-bold uppercase tracking-wider mb-4 text-slate-500">Fulfillment Status Tracker</div>
+                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                      <div className={`p-2.5 rounded-xl border font-bold transition-all ${currentStep >= 1 ? 'bg-cyan-950/80 text-cyan-300 border-cyan-800 dark:bg-cyan-950 dark:border-cyan-800' : (darkMode ? 'bg-slate-950 text-slate-600 border-slate-900' : 'bg-slate-100 text-slate-400 border-slate-200')}`}>
+                        1. Order Authorized
+                      </div>
+                      <div className={`p-2.5 rounded-xl border font-bold transition-all ${currentStep >= 2 ? 'bg-cyan-950/80 text-cyan-300 border-cyan-800 dark:bg-cyan-950 dark:border-cyan-800' : (darkMode ? 'bg-slate-950 text-slate-600 border-slate-900' : 'bg-slate-100 text-slate-400 border-slate-200')}`}>
+                        2. Calibration & QC
+                      </div>
+                      <div className={`p-2.5 rounded-xl border font-bold transition-all ${currentStep >= 3 ? 'bg-indigo-950/80 text-indigo-300 border-indigo-800 dark:bg-indigo-950 dark:border-indigo-800' : (darkMode ? 'bg-slate-950 text-slate-600 border-slate-900' : 'bg-slate-100 text-slate-400 border-slate-200')}`}>
+                        3. Clinical Dispatch
+                      </div>
+                      <div className={`p-2.5 rounded-xl border font-bold transition-all ${currentStep >= 4 ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800 dark:bg-emerald-950 dark:border-emerald-800' : (darkMode ? 'bg-slate-950 text-slate-600 border-slate-900' : 'bg-slate-100 text-slate-400 border-slate-200')}`}>
+                        4. Facility Delivered
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Items List */}
+                  <div className="pt-6">
+                    <div className="text-xs font-bold uppercase tracking-wider mb-3 text-slate-500">Ordered Clinical Systems ({o.items ? o.items.length : 0})</div>
+                    <div className="space-y-3">
+                      {o.items && o.items.map(it => (
+                        <div
+                          key={it.id}
+                          className={`p-3 rounded-xl border flex items-center justify-between gap-4 ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-lg border p-1 flex items-center justify-center overflow-hidden flex-shrink-0 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                              <img
+                                src={it.product_image || "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=200&q=80"}
+                                alt={it.product_name}
+                                className="max-h-full object-contain"
+                              />
+                            </div>
+                            <div>
+                              <a href={`/products/${it.product_id}`} className="font-bold text-sm hover:text-cyan-500 transition-colors line-clamp-1">
+                                {it.product_name || `Equipment #${it.product_id}`}
+                              </a>
+                              <div className="text-xs text-cyan-500 font-mono font-bold mt-0.5">
+                                SKU: {it.product_sku || 'N/A'} • Qty: {it.quantity}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right flex-shrink-0">
+                            <div className="font-bold text-sm">{formatPrice(it.unit_cents * it.quantity)}</div>
+                            <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{formatPrice(it.unit_cents)} each</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
