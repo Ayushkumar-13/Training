@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Minimal admin base styles; UI uses Tailwind utility classes */
+html, body { font-family: Inter, Arial, sans-serif; }
