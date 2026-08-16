@@ -1,0 +1,121 @@
+name: Medical E-Commerce CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test-build:
+    name: Backend (Go + Gin) Test & Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medstore
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install Go Dependencies
+        run: |
+          cd backend
+          go mod download
+
+      - name: Run Go Unit Tests
+        run: |
+          cd backend
+          go test -v ./...
+
+      - name: Build Go Server Binary
+        run: |
+          cd backend
+          go build -v -o server main.go
+
+  frontend-build:
+    name: Customer Frontend (Next.js) Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build Next.js Bundle
+        run: |
+          cd frontend
+          npm run build
+
+  admin-build:
+    name: Admin Dashboard (React + Vite) Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Admin Dependencies
+        run: |
+          cd admin
+          npm ci
+
+      - name: Build Vite App
+        run: |
+          cd admin
+          npm run build
+
+  k8s-manifest-lint:
+    name: Kubernetes Manifest Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Kustomize Build
+        run: |
+          kubectl kustomize k8s/ > compiled-manifests.yaml
+          cat compiled-manifests.yaml
+

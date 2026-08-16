@@ -246,7 +246,7 @@ export default function ProductPage() {
                   disabled={product.inventory <= 0}
                   className="py-3.5 px-6 text-sm font-bold rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white shadow-md transition-all"
                 >
-                  + Add to Shopping Cart
+                  Add to Cart
                 </button>
                 <button
                   onClick={addToWishlist}

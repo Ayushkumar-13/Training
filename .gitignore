@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js Build Outputs & Hot-Reload Caches
+.next/
+**/.next/
+dist/
+**/dist/
+build/
+**/build/
+
+# Environment & Temporary Cache Files
+.env
+.env.local
+.DS_Store
+*.log
+.gotmp/
+.gocache/
