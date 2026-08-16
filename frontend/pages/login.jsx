@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
-import { fetchJSON } from '../lib/api'
+import { fetchJSON, setAuthToken } from '../lib/api'
 import { useTheme } from '../lib/ThemeContext'
 
 export default function Login() {
   const { darkMode } = useTheme()
-  const [email, setEmail] = useState('doctor@hospital.org')
+  const [email, setEmail] = useState('sarah.jenkins@stjudehospital.org')
   const [password, setPassword] = useState('DoctorPass123!')
   const [err, setErr] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -28,9 +28,12 @@ export default function Login() {
         body: JSON.stringify({ email, password })
       })
 
-      if (res && res.token) {
-        localStorage.setItem('token', res.token)
-        localStorage.setItem('user_email', email)
+      const tokenVal = res.token || (res.data && res.data.token)
+      const userObj = res.data && res.data.user
+      const displayName = (userObj && userObj.full_name) ? userObj.full_name : email.split('@')[0]
+
+      if (tokenVal) {
+        setAuthToken(tokenVal, email, displayName)
         router.push('/')
       }
     } catch (e) {
@@ -79,8 +82,8 @@ export default function Login() {
             </div>
 
             <div className={`p-3 rounded-lg border text-xs space-y-1 ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-              <div><strong className="text-cyan-500">Demo User:</strong> doctor@hospital.org / DoctorPass123!</div>
-              <div><strong className="text-cyan-500">Demo Admin:</strong> admin@medstore.local / AdminPass123!</div>
+              <div><strong className="text-cyan-500">Hospital Director:</strong> sarah.jenkins@stjudehospital.org / DoctorPass123!</div>
+              <div><strong className="text-cyan-500">Executive Admin:</strong> admin@medequip.com / AdminPass123!</div>
             </div>
 
             <button

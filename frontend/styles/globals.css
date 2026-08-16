@@ -1,3 +1,52 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --bg-dark: #090d16;        /* Deep Obsidian Charcoal (Industry Standard Linear/Stripe Dark) */
+  --surface-dark: #101726;   /* Card Surface Dark */
+  --border-dark: #1e293b;    /* Translucent Slate Border */
+}
+
+/* Hide scrollbars globally while keeping full scroll functionality */
+* {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Smooth Industry Dark Mode Palette */
+html, body {
+  background-color: #090d16;
+  color: #f8fafc;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html.light, body.light {
+  background-color: #f8fafc; /* slate-50 light background */
+  color: #0f172a;
+}
+
+/* Custom Industry Dark Surface Utility */
+.bg-dark-obsidian {
+  background-color: #090d16;
+}
+
+.bg-dark-surface {
+  background-color: #101726;
+}
+
+.border-dark-subtle {
+  border-color: #1e293b;
+}
+
+/* Completely Hide Scrollbar across WebKit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}

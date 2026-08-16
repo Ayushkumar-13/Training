@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
-import { fetchJSON } from '../lib/api'
+import { fetchJSON, setAuthToken } from '../lib/api'
 import { useTheme } from '../lib/ThemeContext'
 
 export default function Register() {
@@ -34,10 +34,12 @@ export default function Register() {
         body: JSON.stringify({ email, full_name: fullName, password })
       })
 
-      if (res && res.token) {
-        localStorage.setItem('token', res.token)
-        localStorage.setItem('user_email', email)
+      const tokenVal = res.token || (res.data && res.data.token)
+      if (tokenVal) {
+        setAuthToken(tokenVal, email, fullName)
         router.push('/')
+      } else {
+        router.push('/login')
       }
     } catch (e) {
       setErr(e.message || 'Registration failed')
@@ -93,6 +95,7 @@ export default function Register() {
                 placeholder="At least 6 characters"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                minLength={6}
                 required
                 className={`w-full px-3 py-2 text-sm rounded-lg border font-medium focus:outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />

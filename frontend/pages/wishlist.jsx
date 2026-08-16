@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import SkeletonCard from '../components/SkeletonCard'
-import { fetchJSON, formatPrice } from '../lib/api'
+import { fetchJSON, formatPrice, clearAuthToken } from '../lib/api'
 import { useTheme } from '../lib/ThemeContext'
 
 export default function Wishlist() {
@@ -19,7 +19,11 @@ export default function Wishlist() {
         const list = Array.isArray(res) ? res : (res.data || [])
         setItems(list)
       })
-      .catch(console.error)
+      .catch(err => {
+        if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized') || err.message.toLowerCase().includes('token')) {
+          clearAuthToken()
+        }
+      })
       .finally(() => setLoading(false))
   }
 
@@ -28,7 +32,14 @@ export default function Wishlist() {
       await fetchJSON(`/api/wishlist/${productId}`, { method: 'DELETE' })
       loadWishlist()
     } catch (err) {
-      alert('Failed to remove item from wishlist')
+      if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized') || err.message.toLowerCase().includes('token')) {
+        clearAuthToken()
+        if (confirm('Your session has expired. Would you like to sign in now?')) {
+          window.location.href = '/login'
+        }
+      } else {
+        alert('Failed to remove item from wishlist')
+      }
     }
   }
 
@@ -42,7 +53,14 @@ export default function Wishlist() {
       alert('Moved equipment to shopping cart!')
       loadWishlist()
     } catch (err) {
-      alert('Failed to move item to cart')
+      if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized') || err.message.toLowerCase().includes('token')) {
+        clearAuthToken()
+        if (confirm('Your session has expired. Would you like to sign in now?')) {
+          window.location.href = '/login'
+        }
+      } else {
+        alert('Failed to move item to cart')
+      }
     }
   }
 
@@ -60,7 +78,14 @@ export default function Wishlist() {
       alert('All wishlist items moved to shopping cart!')
       loadWishlist()
     } catch (err) {
-      alert('Failed to move items to cart')
+      if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized') || err.message.toLowerCase().includes('token')) {
+        clearAuthToken()
+        if (confirm('Your session has expired. Would you like to sign in now?')) {
+          window.location.href = '/login'
+        }
+      } else {
+        alert('Failed to move items to cart')
+      }
     }
   }
 
