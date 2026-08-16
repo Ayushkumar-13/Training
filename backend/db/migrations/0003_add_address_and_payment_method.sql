@@ -1,0 +1,7 @@
+-- Add shipping address and payment method fields to orders table
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS city VARCHAR(100) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS state VARCHAR(100) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'online';

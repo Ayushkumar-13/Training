@@ -42,11 +42,11 @@ func (s *AuthService) Authenticate(email, password string) (*models.User, string
     if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
         return nil, "", errors.New("invalid credentials")
     }
-    // create token
+    // create 30-day token
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
         "sub": u.ID,
         "role": role,
-        "exp": time.Now().Add(24 * time.Hour).Unix(),
+        "exp": time.Now().Add(30 * 24 * time.Hour).Unix(), // 30 Days Expiration
     })
     signed, err := token.SignedString([]byte(s.secret))
     if err != nil {

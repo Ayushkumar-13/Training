@@ -1,84 +1,61 @@
 package db
 
 import (
-    "database/sql"
-    "fmt"
-    "golang.org/x/crypto/bcrypt"
+	"database/sql"
+	"fmt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func Seed(db *sql.DB) error {
-    tx, err := db.Begin()
-    if err != nil {
-        return err
-    }
-    defer func() {
-        if err != nil {
-            tx.Rollback()
-        }
-    }()
+	// 1. Roles
+	_, err := db.Exec(`INSERT INTO roles (name) VALUES ('admin'), ('user') ON CONFLICT (name) DO NOTHING`)
+	if err != nil {
+		fmt.Printf("Seed roles note: %v\n", err)
+	}
 
-    // Roles
-    if _, err = tx.Exec(`INSERT INTO roles (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`, "admin"); err != nil {
-        return err
-    }
-    if _, err = tx.Exec(`INSERT INTO roles (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`, "user"); err != nil {
-        return err
-    }
+	// 2. Verified Enterprise Accounts
+	usersToSeed := []struct {
+		Email    string
+		Password string
+		FullName string
+		RoleName string
+	}{
+		{"ayush@medequip.com", "AyushPass123!", "Ayush Kumar", "admin"},
+		{"admin@medequip.com", "AdminPass123!", "Platform Executive Admin", "admin"},
+		{"sarah.jenkins@stjudehospital.org", "DoctorPass123!", "Dr. Sarah Jenkins", "user"},
+	}
 
-    // Categories
-    if _, err = tx.Exec(`INSERT INTO categories (name, slug) VALUES
-        ('Imaging','imaging'),
-        ('Patient Monitoring','patient-monitoring'),
-        ('Infusion & Syringe Pumps','infusion-pumps')
-        ON CONFLICT (slug) DO NOTHING`); err != nil {
-        return err
-    }
+	for _, u := range usersToSeed {
+		hash, errHash := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+		if errHash == nil {
+			_, errExec := db.Exec(`
+				INSERT INTO users (email, password_hash, full_name, role_id)
+				SELECT $1, $2, $3, r.id FROM roles r WHERE r.name = $4
+				ON CONFLICT (email) DO NOTHING`,
+				u.Email, string(hash), u.FullName, u.RoleName,
+			)
+			if errExec != nil {
+				fmt.Printf("Seed user %s note: %v\n", u.Email, errExec)
+			}
+		}
+	}
 
-    // Sample products
-    if _, err = tx.Exec(`INSERT INTO products (sku, name, description, category_id, is_refurbished, warranty_months, price_cents, currency)
-        SELECT $1,$2,$3,c.id,$4,$5,$6,$7 FROM categories c WHERE c.slug = $8
-        ON CONFLICT (sku) DO NOTHING`,
-        "XR-1000", "X-Ray System XR-1000", "High-resolution digital X-Ray system suitable for radiology departments.", false, 24, 15000000, "USD", "imaging"); err != nil {
-        return err
-    }
+	// 3. Clinical Equipment Categories
+	categories := []struct {
+		Name string
+		Slug string
+	}{
+		{"Diagnostic & Imaging Systems", "diagnostic-imaging"},
+		{"Patient Monitoring & Vitals", "patient-monitoring"},
+		{"Infusion & Syringe Pumps", "infusion-pumps"},
+		{"Surgical & Operating Room Equipment", "surgical-equipment"},
+		{"Ventilators & Respiratory Support", "respiratory-support"},
+	}
 
-    if _, err = tx.Exec(`INSERT INTO products (sku, name, description, category_id, is_refurbished, warranty_months, price_cents, currency)
-        SELECT $1,$2,$3,c.id,$4,$5,$6,$7 FROM categories c WHERE c.slug = $8
-        ON CONFLICT (sku) DO NOTHING`,
-        "INF-200", "Infusion Pump IP-200", "Volumetric infusion pump with safety alarms and battery backup.", false, 12, 350000, "USD", "infusion-pumps"); err != nil {
-        return err
-    }
+	for _, c := range categories {
+		_, _ = db.Exec(`INSERT INTO categories (name, slug) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING`, c.Name, c.Slug)
+	}
 
-    if _, err = tx.Exec(`INSERT INTO products (sku, name, description, category_id, is_refurbished, warranty_months, price_cents, currency)
-        SELECT $1,$2,$3,c.id,$4,$5,$6,$7 FROM categories c WHERE c.slug = $8
-        ON CONFLICT (sku) DO NOTHING`,
-        "PM-500", "Patient Monitor PM-500", "Multi-parameter patient monitor for vitals surveillance.", false, 12, 1250000, "USD", "patient-monitoring"); err != nil {
-        return err
-    }
-
-    // Inventory
-    if _, err = tx.Exec(`INSERT INTO inventory (product_id, quantity, location)
-        SELECT p.id, $1, 'main-warehouse' FROM products p WHERE p.sku = $2
-        ON CONFLICT DO NOTHING`, 5, "INF-200"); err != nil {
-        // ignore conflict errors
-    }
-
-    // Create admin user with a secure hashed password (demo password: AdminPass123!).
-    password := []byte("AdminPass123!")
-    hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
-    if err != nil {
-        return err
-    }
-    // Insert admin user if not exists
-    if _, err = tx.Exec(`INSERT INTO users (email, password_hash, full_name, role_id)
-        SELECT $1, $2, $3, r.id FROM roles r WHERE r.name = 'admin' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.email = $1)`,
-        "admin@medstore.local", string(hash), "Platform Admin"); err != nil {
-        return err
-    }
-
-    if err = tx.Commit(); err != nil {
-        return err
-    }
-    fmt.Println("Seed completed")
-    return nil
+	fmt.Println("Database seed completed (Roles, Enterprise Users, and Categories initialized). Products catalog left clean for Admin creation!")
+	return nil
 }

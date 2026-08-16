@@ -99,7 +99,11 @@ CREATE TABLE IF NOT EXISTS cart_items (
 );
 
 -- Orders
-CREATE TYPE order_status AS ENUM ('pending','processing','shipped','delivered','cancelled','refunded');
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
+        CREATE TYPE order_status AS ENUM ('pending','processing','shipped','delivered','cancelled','refunded');
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,

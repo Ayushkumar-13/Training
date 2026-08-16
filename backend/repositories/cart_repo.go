@@ -27,17 +27,28 @@ func (r *CartRepository) GetOrCreateCart(userID int) (*models.Cart, error) {
 }
 
 func (r *CartRepository) GetItems(cartID int) ([]models.CartItem, error) {
-    rows, err := r.db.Query(`SELECT id, cart_id, product_id, quantity, unit_price_cents FROM cart_items WHERE cart_id = $1`, cartID)
-    if err != nil { return nil, err }
-    defer rows.Close()
-    var out []models.CartItem
-    for rows.Next() {
-        var it models.CartItem
-        if err := rows.Scan(&it.ID, &it.CartID, &it.ProductID, &it.Quantity, &it.UnitPriceCents); err != nil { return nil, err }
-        out = append(out, it)
-    }
-    return out, nil
+	query := `
+		SELECT ci.id, ci.cart_id, ci.product_id, p.name, p.sku, coalesce(img.url, ''), ci.quantity, ci.unit_price_cents
+		FROM cart_items ci
+		JOIN products p ON ci.product_id = p.id
+		LEFT JOIN product_images img ON p.id = img.product_id AND img.ordering = 1
+		WHERE ci.cart_id = $1`
+	rows, err := r.db.Query(query, cartID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.CartItem
+	for rows.Next() {
+		var it models.CartItem
+		if err := rows.Scan(&it.ID, &it.CartID, &it.ProductID, &it.ProductName, &it.ProductSKU, &it.ProductImage, &it.Quantity, &it.UnitPriceCents); err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, nil
 }
+
 
 func (r *CartRepository) AddOrUpdateItem(cartID, productID, quantity int, unitPrice int64) error {
     // try update

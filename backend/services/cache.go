@@ -23,8 +23,18 @@ func (c *Cache) Set(ctx context.Context, key string, value string, ttl time.Dura
 }
 
 func (c *Cache) Del(ctx context.Context, keys ...string) error {
-    return c.r.Del(ctx, keys...).Err()
+	return c.r.Del(ctx, keys...).Err()
 }
+
+func (c *Cache) DelPattern(ctx context.Context, pattern string) error {
+	keys, err := c.r.Keys(ctx, pattern).Result()
+	if err != nil || len(keys) == 0 {
+		return err
+	}
+	return c.r.Del(ctx, keys...).Err()
+}
+
+
 
 func (c *Cache) Incr(ctx context.Context, key string) (int64, error) {
     return c.r.Incr(ctx, key).Result()
