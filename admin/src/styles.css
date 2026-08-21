@@ -1,4 +1,20 @@
 @import "tailwindcss";
 
-/* Minimal admin base styles; UI uses Tailwind utility classes */
-html, body { font-family: Inter, Arial, sans-serif; }
+/* Hide scrollbars completely across Chrome, Safari, Firefox, Edge */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+}
+
+* {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+html, body {
+  font-family: Inter, Arial, sans-serif;
+  overflow-x: hidden !important;
+  margin: 0;
+  padding: 0;
+}
