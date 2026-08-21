@@ -49,3 +49,25 @@ func (r *UserRepository) CreateUser(email, passwordHash, fullName string) (*mode
 	}
 	return &models.User{ID: id, Email: email, FullName: fullName, Role: "user", CreatedAt: createdAt}, nil
 }
+
+func (r *UserRepository) GetAllUsers() ([]models.User, error) {
+	rows, err := r.db.Query(`
+		SELECT u.id, u.email, u.full_name, coalesce(r.name, 'user'), u.created_at
+		FROM users u
+		LEFT JOIN roles r ON u.role_id = r.id
+		ORDER BY u.id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}

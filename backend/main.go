@@ -43,19 +43,19 @@ func main() {
 		log.Printf("SQL seed info: %v", err)
 	}
 
-	userRepo := repositories.NewUserRepository(dbConn)
-	productRepo := repositories.NewProductRepository(dbConn)
-	categoryRepo := repositories.NewCategoryRepository(dbConn)
-
-	authSvc := services.NewAuthService(userRepo, jwtSecret)
-	categorySvc := services.NewCategoryService(categoryRepo)
-
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
 	redisPass := os.Getenv("REDIS_PASSWORD")
 	cache := services.NewCache(redisAddr, redisPass)
+
+	userRepo := repositories.NewUserRepository(dbConn)
+	productRepo := repositories.NewProductRepository(dbConn)
+	categoryRepo := repositories.NewCategoryRepository(dbConn)
+
+	authSvc := services.NewAuthService(userRepo, jwtSecret, cache)
+	categorySvc := services.NewCategoryService(categoryRepo)
 
 	productSvc := services.NewProductService(productRepo, cache)
 	cartRepo := repositories.NewCartRepository(dbConn)
@@ -77,6 +77,7 @@ func main() {
 	wishlistHandler := handlers.NewWishlistHandler(wishlistSvc)
 	orderHandler := handlers.NewOrderHandler(orderSvc)
 	adminHandler := handlers.NewAdminHandler(productSvc)
+	razorpayHandler := handlers.NewRazorpayHandler(orderSvc)
 
 	api := r.Group("/api")
 	{
@@ -84,12 +85,17 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "medical-ecommerce-api", "database": "postgresql-sql"})
 		})
 
+		wsHandler := handlers.NewWSHandler()
+		api.GET("/ws", wsHandler.ServeWS)
+
 		api.POST("/register", authHandler.Register)
 		api.POST("/login", authHandler.Login)
 
 		api.GET("/categories", categoryHandler.List)
 		api.GET("/products", productHandler.List)
 		api.GET("/products/:id", productHandler.Get)
+		api.GET("/products/:id/reviews", productHandler.GetReviews)
+		api.POST("/reviews/:id/helpful", productHandler.VoteHelpful)
 
 		protected := api.Group("")
 		protected.Use(middleware.JWTMiddleware(jwtSecret))
@@ -104,14 +110,23 @@ func main() {
 		protected.POST("/wishlist", wishlistHandler.Add)
 		protected.DELETE("/wishlist/:product_id", wishlistHandler.Remove)
 
+		protected.POST("/products/:id/reviews", productHandler.AddReview)
+
 		protected.POST("/orders", orderHandler.Create)
 		protected.GET("/orders", orderHandler.List)
+		protected.POST("/orders/:id/cancel", orderHandler.Cancel)
+		protected.POST("/orders/:id/return", orderHandler.RequestReturn)
+
+		// Razorpay Payment Gateway Endpoints
+		protected.POST("/payments/razorpay/order", razorpayHandler.CreateOrder)
+		protected.POST("/payments/razorpay/verify", razorpayHandler.VerifyPayment)
 
 		// Admin routes
 		admin := protected.Group("")
 		admin.Use(middleware.AdminOnly())
 		admin.GET("/admin/stats", adminHandler.GetStats)
 		admin.GET("/admin/orders", orderHandler.ListAll)
+		admin.GET("/admin/users", authHandler.ListUsers)
 		admin.POST("/categories", categoryHandler.Create)
 
 		admin.POST("/products", productHandler.Create)
@@ -122,6 +137,10 @@ func main() {
 
 		admin.PUT("/orders/:id/status", orderHandler.UpdateStatus)
 		admin.PUT("/orders/:id/fulfill", orderHandler.UpdateStatus)
+		admin.PUT("/orders/:id/return-status", orderHandler.UpdateReturnStatus)
+
+		admin.GET("/admin/reviews", productHandler.ListAllReviews)
+		admin.DELETE("/admin/reviews/:id", productHandler.DeleteReview)
 	}
 
 	// Bind explicitly to 127.0.0.1 (loopback interface)

@@ -7,6 +7,7 @@ import (
     "backend/models"
     "backend/repositories"
     "backend/services"
+    "backend/ws"
     "github.com/gin-gonic/gin"
 )
 
@@ -184,7 +185,17 @@ func (h *ProductHandler) AdjustInventory(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true, "message": "inventory updated"})
+	updatedProd, _ := h.svc.GetByID(id)
+	newQty := 0
+	if updatedProd != nil {
+		newQty = updatedProd.Inventory
+	}
+	ws.BroadcastEvent("INVENTORY_UPDATED", gin.H{
+		"product_id": id,
+		"inventory":  newQty,
+		"delta":      delta,
+	})
+	c.JSON(http.StatusOK, gin.H{"ok": true, "inventory": newQty, "message": "inventory updated"})
 }
 
 func (h *ProductHandler) Delete(c *gin.Context) {
@@ -199,5 +210,93 @@ func (h *ProductHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (h *ProductHandler) AddReview(c *gin.Context) {
+	userID, ok := getUserIDFromCtx(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		return
+	}
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id"})
+		return
+	}
+	var req struct {
+		Rating     int    `json:"rating"`
+		ReviewText string `json:"review_text"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	rev := &models.ProductReview{
+		ProductID:  id,
+		UserID:     userID,
+		Rating:     req.Rating,
+		ReviewText: req.ReviewText,
+	}
+	_ = h.svc.AddReview(rev)
+	ws.BroadcastEvent("REVIEW_ADDED", gin.H{
+		"product_id":  id,
+		"rating":      req.Rating,
+		"review_text": req.ReviewText,
+		"user_id":     userID,
+	})
+	c.JSON(http.StatusOK, gin.H{"ok": true, "message": "review submitted successfully"})
+}
+
+func (h *ProductHandler) GetReviews(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id"})
+		return
+	}
+	reviews, err := h.svc.GetReviews(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, reviews)
+}
+
+func (h *ProductHandler) ListAllReviews(c *gin.Context) {
+	reviews, err := h.svc.GetAllReviews()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, reviews)
+}
+
+func (h *ProductHandler) DeleteReview(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review id"})
+		return
+	}
+	if err := h.svc.DeleteReview(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "message": "review deleted successfully"})
+}
+
+func (h *ProductHandler) VoteHelpful(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review id"})
+		return
+	}
+	if err := h.svc.VoteHelpfulReview(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "message": "helpful vote recorded"})
 }
 

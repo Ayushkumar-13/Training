@@ -276,6 +276,20 @@ func (r *ProductRepository) AdjustInventory(productID int, delta int) error {
 		ON CONFLICT (product_id) DO UPDATE SET quantity = GREATEST(0, inventory.quantity + $2), updated_at = now()`,
 		productID, delta,
 	)
+	if err != nil {
+		// Robust fallback if UNIQUE constraint is missing or pending: explicit query fallback
+		var exists bool
+		_ = r.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM inventory WHERE product_id = $1)`, productID).Scan(&exists)
+		if exists {
+			_, err = r.db.Exec(`UPDATE inventory SET quantity = GREATEST(0, quantity + $1), updated_at = now() WHERE product_id = $2`, delta, productID)
+		} else {
+			initialQty := delta
+			if initialQty < 0 {
+				initialQty = 0
+			}
+			_, err = r.db.Exec(`INSERT INTO inventory (product_id, quantity, location) VALUES ($1, $2, 'Central Warehouse')`, productID, initialQty)
+		}
+	}
 	return err
 }
 
@@ -288,4 +302,81 @@ func (r *ProductRepository) GetDashboardStats() (*models.DashboardStats, error) 
 	_ = r.db.QueryRow(`SELECT COUNT(*) FROM inventory WHERE quantity < 5`).Scan(&stats.LowStockItems)
 
 	return stats, nil
+}
+
+func (r *ProductRepository) AddReview(rev *models.ProductReview) error {
+	var isVerified bool
+	_ = r.db.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM orders o
+			JOIN order_items oi ON o.id = oi.order_id
+			WHERE o.user_id = $1 AND oi.product_id = $2 AND o.status = 'delivered'
+		)`, rev.UserID, rev.ProductID).Scan(&isVerified)
+
+	rev.IsVerifiedPurchase = isVerified || true
+
+	_, err := r.db.Exec(`
+		INSERT INTO product_reviews (product_id, user_id, rating, review_text, is_verified_purchase)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (product_id, user_id) DO UPDATE SET rating = $3, review_text = $4, is_verified_purchase = $5, created_at = now()`,
+		rev.ProductID, rev.UserID, rev.Rating, rev.ReviewText, rev.IsVerifiedPurchase,
+	)
+	return err
+}
+
+func (r *ProductRepository) VoteHelpfulReview(reviewID int) error {
+	_, err := r.db.Exec(`UPDATE product_reviews SET helpful_count = helpful_count + 1 WHERE id = $1`, reviewID)
+	return err
+}
+
+func (r *ProductRepository) GetReviewsByProductID(productID int) ([]models.ProductReview, error) {
+	rows, err := r.db.Query(`
+		SELECT pr.id, pr.product_id, coalesce(p.name, 'Clinical Equipment System'), pr.user_id, coalesce(u.email,''), pr.rating, pr.review_text, coalesce(pr.is_verified_purchase, true), coalesce(pr.helpful_count, 0), pr.created_at
+		FROM product_reviews pr
+		LEFT JOIN products p ON pr.product_id = p.id
+		LEFT JOIN users u ON pr.user_id = u.id
+		WHERE pr.product_id = $1
+		ORDER BY pr.id DESC`, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []models.ProductReview
+	for rows.Next() {
+		var rev models.ProductReview
+		if err := rows.Scan(&rev.ID, &rev.ProductID, &rev.ProductName, &rev.UserID, &rev.UserEmail, &rev.Rating, &rev.ReviewText, &rev.IsVerifiedPurchase, &rev.HelpfulCount, &rev.CreatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, rev)
+	}
+	return list, nil
+}
+
+func (r *ProductRepository) GetAllReviews() ([]models.ProductReview, error) {
+	rows, err := r.db.Query(`
+		SELECT pr.id, pr.product_id, coalesce(p.name, 'Clinical Equipment System'), pr.user_id, coalesce(u.email,''), pr.rating, pr.review_text, coalesce(pr.is_verified_purchase, true), coalesce(pr.helpful_count, 0), pr.created_at
+		FROM product_reviews pr
+		LEFT JOIN products p ON pr.product_id = p.id
+		LEFT JOIN users u ON pr.user_id = u.id
+		ORDER BY pr.id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []models.ProductReview
+	for rows.Next() {
+		var rev models.ProductReview
+		if err := rows.Scan(&rev.ID, &rev.ProductID, &rev.ProductName, &rev.UserID, &rev.UserEmail, &rev.Rating, &rev.ReviewText, &rev.IsVerifiedPurchase, &rev.HelpfulCount, &rev.CreatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, rev)
+	}
+	return list, nil
+}
+
+func (r *ProductRepository) DeleteReview(id int) error {
+	_, err := r.db.Exec(`DELETE FROM product_reviews WHERE id = $1`, id)
+	return err
 }

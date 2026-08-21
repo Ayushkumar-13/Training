@@ -70,3 +70,15 @@ type DashboardStats struct {
 	LowStockItems   int   `json:"low_stock_items"`
 }
 
+type ProductReview struct {
+	ID                 int       `json:"id"`
+	ProductID          int       `json:"product_id"`
+	ProductName        string    `json:"product_name,omitempty"`
+	UserID             int       `json:"user_id"`
+	UserEmail          string    `json:"user_email,omitempty"`
+	Rating             int       `json:"rating"`
+	ReviewText         string    `json:"review_text"`
+	IsVerifiedPurchase bool      `json:"is_verified_purchase"`
+	HelpfulCount       int       `json:"helpful_count"`
+	CreatedAt          time.Time `json:"created_at"`
+}

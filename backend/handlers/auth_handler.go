@@ -74,3 +74,12 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"user_id": userID}})
 }
+
+func (h *AuthHandler) ListUsers(c *gin.Context) {
+	users, err := h.svc.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve user accounts"})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}

@@ -132,3 +132,29 @@ func (s *ProductService) AdjustInventory(id int, delta int) error {
 func (s *ProductService) GetDashboardStats() (*models.DashboardStats, error) {
 	return s.repo.GetDashboardStats()
 }
+
+func (s *ProductService) AddReview(rev *models.ProductReview) error {
+	if rev.Rating < 1 || rev.Rating > 5 {
+		return fmt.Errorf("rating must be between 1 and 5 stars")
+	}
+	if rev.ReviewText == "" {
+		rev.ReviewText = "Product quality verified."
+	}
+	return s.repo.AddReview(rev)
+}
+
+func (s *ProductService) GetReviews(productID int) ([]models.ProductReview, error) {
+	return s.repo.GetReviewsByProductID(productID)
+}
+
+func (s *ProductService) GetAllReviews() ([]models.ProductReview, error) {
+	return s.repo.GetAllReviews()
+}
+
+func (s *ProductService) DeleteReview(id int) error {
+	return s.repo.DeleteReview(id)
+}
+
+func (s *ProductService) VoteHelpfulReview(id int) error {
+	return s.repo.VoteHelpfulReview(id)
+}
